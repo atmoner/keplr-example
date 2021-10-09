@@ -1,4 +1,9 @@
 const { SigningCosmosClient } = require("@cosmjs/launchpad");
+import { DirectSecp256k1HdWallet } from '@cosmjs/proto-signing'
+import {
+	assertIsBroadcastTxSuccess,
+	SigningStargateClient,
+} from '@cosmjs/stargate'
 
 window.onload = async () => {
     // Keplr extension injects the offline signer that is compatible with cosmJS.
@@ -18,19 +23,19 @@ window.onload = async () => {
                 // If the same chain id is already registered, it will resolve and not require the user interactions.
                 await window.keplr.experimentalSuggestChain({
                     // Chain-id of the Cosmos SDK chain.
-                    chainId: "cosmoshub-3",
+					chainId: "bitcanna-1",
                     // The name of the chain to be displayed to the user.
-                    chainName: "Cosmos",
+                    chainName: "Bitcanna mainnet",
                     // RPC endpoint of the chain.
-                    rpc: "https://node-cosmoshub-3.keplr.app/rpc",
+					rpc: "https://rpc.bitcanna.io",
                     // REST endpoint of the chain.
-                    rest: "https://node-cosmoshub-3.keplr.app/rest",
+					rest: "https://lcd.bitcanna.io",
                     // Staking coin information
                     stakeCurrency: {
                         // Coin denomination to be displayed to the user.
-                        coinDenom: "ATOM",
+                        coinDenom: "BCNA",
                         // Actual denom (i.e. uatom, uscrt) used by the blockchain.
-                        coinMinimalDenom: "uatom",
+                        coinMinimalDenom: "ubcna",
                         // # of decimal points to convert minimal denomination to user-facing denomination.
                         coinDecimals: 6,
                         // (Optional) Keplr can show the fiat value of the coin if a coingecko id is provided.
@@ -57,19 +62,19 @@ window.onload = async () => {
                     //   bech32PrefixConsPub: string;
                     // }
                     bech32Config: {
-                        bech32PrefixAccAddr: "cosmos",
-                        bech32PrefixAccPub: "cosmospub",
-                        bech32PrefixValAddr: "cosmosvaloper",
-                        bech32PrefixValPub: "cosmosvaloperpub",
-                        bech32PrefixConsAddr: "cosmosvalcons",
-                        bech32PrefixConsPub: "cosmosvalconspub"
+                        bech32PrefixAccAddr: "bcna",
+						bech32PrefixAccPub: "bcnapub",
+						bech32PrefixValAddr: "bcnavaloper",
+						bech32PrefixValPub: "bcnavaloperpub",
+						bech32PrefixConsAddr: "bcnavalcons",
+						bech32PrefixConsPub: "bcnavalconspub"
                     },
                     // List of all coin/tokens used in this chain.
                     currencies: [{
                         // Coin denomination to be displayed to the user.
-                        coinDenom: "ATOM",
+                        coinDenom: "BCNA",
                         // Actual denom (i.e. uatom, uscrt) used by the blockchain.
-                        coinMinimalDenom: "uatom",
+                        coinMinimalDenom: "ubcna",
                         // # of decimal points to convert minimal denomination to user-facing denomination.
                         coinDecimals: 6,
                         // (Optional) Keplr can show the fiat value of the coin if a coingecko id is provided.
@@ -79,9 +84,9 @@ window.onload = async () => {
                     // List of coin/tokens used as a fee token in this chain.
                     feeCurrencies: [{
                         // Coin denomination to be displayed to the user.
-                        coinDenom: "ATOM",
-                        // Actual denom (i.e. uatom, uscrt) used by the blockchain.
-                        coinMinimalDenom: "uatom",
+						coinDenom: "BCNA",
+						// Actual denom (i.e. ubcna, uscrt) used by the blockchain.
+						coinMinimalDenom: "ubcna",
                         // # of decimal points to convert minimal denomination to user-facing denomination.
                         coinDecimals: 6,
                         // (Optional) Keplr can show the fiat value of the coin if a coingecko id is provided.
@@ -112,7 +117,7 @@ window.onload = async () => {
         }
     }
 
-    const chainId = "cosmoshub-3";
+    const chainId = "bitcanna-1";
 
     // You should request Keplr to enable the wallet.
     // This method will ask the user whether or not to allow access if they haven't visited this website.
@@ -130,11 +135,11 @@ window.onload = async () => {
 
     // Initialize the gaia api with the offline signer that is injected by Keplr extension.
     const cosmJS = new SigningCosmosClient(
-        "https://node-cosmoshub-3.keplr.app/rest",
+		"https://rpc.bitcanna.io",
         accounts[0].address,
         offlineSigner,
     );
-
+ 
     document.getElementById("address").append(accounts[0].address);
 };
 
@@ -153,32 +158,38 @@ document.sendForm.onsubmit = () => {
 
     (async () => {
         // See above.
-        const chainId = "cosmoshub-3";
+		const chainId = "bitcanna-1";
         await window.keplr.enable(chainId);
         const offlineSigner = window.getOfflineSigner(chainId);
-
         const accounts = await offlineSigner.getAccounts();
-
-        // Initialize the gaia api with the offline signer that is injected by Keplr extension.
-        const cosmJS = new SigningCosmosClient(
-            "https://node-cosmoshub-3.keplr.app/rest",
-            accounts[0].address,
-            offlineSigner
-        );
-
-        const result = await cosmJS.sendTokens(recipient, [{
-            denom: "uatom",
-            amount: amount.toString(),
-        }]);
-
-        console.log(result);
-
+		
+		const client = await SigningStargateClient.connectWithSigner(
+			"https://rpc.bitcanna.io",
+			offlineSigner		
+		)
+ 
+		const amountFinal = {
+			denom: 'ubcna',
+	 		amount: amount.toString(),
+		}
+  		const fee = {
+    		amount: [
+      		{
+        		denom: 'ubcna',
+        		amount: '5000',
+      		},
+    		],
+    		gas: '200000',
+  		}		
+		const result = await client.sendTokens(accounts[0].address, recipient, [amountFinal], fee, '')
+		assertIsBroadcastTxSuccess(result)
+		
         if (result.code !== undefined &&
             result.code !== 0) {
             alert("Failed to send tx: " + result.log || result.rawLog);
         } else {
             alert("Succeed to send tx");
-        }
+        }		
     })();
 
     return false;
